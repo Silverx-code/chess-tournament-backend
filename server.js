@@ -7,6 +7,7 @@ const cron     = require('node-cron');
 const authRoutes  = require('./routes/authRoutes');
 const matchRoutes = require('./routes/matchRoutes');
 const pollRoutes  = require('./routes/pollRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const User        = require('./models/User');
 
 const app  = express();
@@ -23,7 +24,6 @@ app.use(express.json());
 app.use('/api', authRoutes);                    // POST /api/signup, /api/login
 app.use('/api/match', matchRoutes);             // POST /api/match/register, GET /api/match
 app.use('/api/leaderboard', (req, res, next) => {
-  // Convenience: redirect /api/leaderboard to the match router's leaderboard handler
   req.url = '/leaderboard';
   matchRoutes(req, res, next);
 });
@@ -32,7 +32,8 @@ app.use('/api/matches', (req, res, next) => {
   matchRoutes(req, res, next);
 });
 app.use('/api/poll', pollRoutes);               // GET /api/poll
-app.use('/api/vote', pollRoutes);               // POST /api/vote → handled inside pollRoutes
+app.use('/api/vote', pollRoutes);               // POST /api/vote
+app.use('/api/admin', adminRoutes);             // All admin routes
 
 // ── Health check ──────────────────────────────────────────────────────
 app.get('/', (req, res) => {
@@ -45,16 +46,11 @@ app.use((req, res) => {
 });
 
 // ── Monthly reset cron job ────────────────────────────────────────────
-// Runs at 00:00 on the 1st of every month
 cron.schedule('0 0 1 * *', async () => {
   try {
     const month = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
     await User.updateMany({}, {
-      $set: {
-        totalPoints:   0,
-        matchesPlayed: 0,
-        month,
-      },
+      $set: { totalPoints: 0, matchesPlayed: 0, month },
     });
     console.log(`✅ Monthly reset complete for ${month}`);
   } catch (err) {

@@ -30,6 +30,23 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: () => new Date().toLocaleString('default', { month: 'long', year: 'numeric' }),
   },
+  // ── Admin / moderation fields ──────────────────────────────────────
+  isAdmin: {
+    type: Boolean,
+    default: false,
+  },
+  isSuspended: {
+    type: Boolean,
+    default: false,
+  },
+  suspendedUntil: {
+    type: Date,
+    default: null,
+  },
+  isBlocked: {
+    type: Boolean,
+    default: false,
+  },
 }, { timestamps: true });
 
 // Hash password before saving

@@ -27,10 +27,7 @@ router.post('/signup', async (req, res) => {
       password,
     });
 
-    res.status(201).json({
-      message: 'Account created successfully.',
-      user,
-    });
+    res.status(201).json({ message: 'Account created successfully.', user });
   } catch (err) {
     console.error('Signup error:', err);
     res.status(500).json({ message: 'Server error during signup.' });
@@ -51,17 +48,31 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid Chess ID or password.' });
     }
 
+    // Check if blocked
+    if (user.isBlocked) {
+      return res.status(403).json({ message: 'Your account has been permanently blocked. Contact the admin.' });
+    }
+
+    // Check if suspended
+    if (user.isSuspended && user.suspendedUntil && new Date() < new Date(user.suspendedUntil)) {
+      const until = new Date(user.suspendedUntil).toLocaleDateString();
+      return res.status(403).json({ message: `Your account is suspended until ${until}.` });
+    }
+
+    // Auto-lift expired suspension
+    if (user.isSuspended && user.suspendedUntil && new Date() >= new Date(user.suspendedUntil)) {
+      user.isSuspended = false;
+      user.suspendedUntil = null;
+      await user.save();
+    }
+
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid Chess ID or password.' });
     }
 
     const token = signToken(user._id);
-
-    res.json({
-      token,
-      user: user.toJSON(),  // password stripped by toJSON()
-    });
+    res.json({ token, user: user.toJSON() });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ message: 'Server error during login.' });
