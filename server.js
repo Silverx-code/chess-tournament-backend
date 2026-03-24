@@ -4,11 +4,12 @@ const mongoose = require('mongoose');
 const cors     = require('cors');
 const cron     = require('node-cron');
 
-const authRoutes  = require('./routes/authRoutes');
-const matchRoutes = require('./routes/matchRoutes');
-const pollRoutes  = require('./routes/pollRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-const User        = require('./models/User');
+const authRoutes    = require('./routes/authRoutes');
+const matchRoutes   = require('./routes/matchRoutes');
+const pollRoutes    = require('./routes/pollRoutes');
+const adminRoutes   = require('./routes/adminRoutes');
+const fixtureRoutes = require('./routes/fixtureRoutes');
+const User          = require('./models/User');
 
 const app  = express();
 const PORT = process.env.PORT || 5000;
@@ -22,8 +23,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // ── Routes ────────────────────────────────────────────────────────────
-app.use('/api', authRoutes);                    // POST /api/signup, /api/login
-app.use('/api/match', matchRoutes);             // POST /api/match/register, GET /api/match
+app.use('/api', authRoutes);
+app.use('/api/match', matchRoutes);
 app.use('/api/leaderboard', (req, res, next) => {
   req.url = '/leaderboard';
   matchRoutes(req, res, next);
@@ -32,9 +33,10 @@ app.use('/api/matches', (req, res, next) => {
   req.url = '/';
   matchRoutes(req, res, next);
 });
-app.use('/api/poll', pollRoutes);               // GET /api/poll
-app.use('/api/vote', pollRoutes);               // POST /api/vote
-app.use('/api/admin', adminRoutes);             // All admin routes
+app.use('/api/poll',     pollRoutes);
+app.use('/api/vote',     pollRoutes);
+app.use('/api/admin',    adminRoutes);
+app.use('/api/fixtures', fixtureRoutes);
 
 // ── Health check ──────────────────────────────────────────────────────
 app.get('/', (req, res) => {
@@ -46,12 +48,12 @@ app.use((req, res) => {
   res.status(404).json({ message: `Route ${req.method} ${req.path} not found.` });
 });
 
-// ── Monthly reset cron job ────────────────────────────────────────────
+// ── Monthly reset cron ────────────────────────────────────────────────
 cron.schedule('0 0 1 * *', async () => {
   try {
     const month = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
     await User.updateMany({}, {
-      $set: { totalPoints: 0, matchesPlayed: 0, month },
+      $set: { totalPoints: 0, matchesPlayed: 0, wins: 0, draws: 0, losses: 0, month },
     });
     console.log(`✅ Monthly reset complete for ${month}`);
   } catch (err) {
@@ -59,7 +61,7 @@ cron.schedule('0 0 1 * *', async () => {
   }
 });
 
-// ── Connect to MongoDB then start server ──────────────────────────────
+// ── Connect & start ───────────────────────────────────────────────────
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
