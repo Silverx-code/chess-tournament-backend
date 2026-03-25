@@ -22,6 +22,10 @@ const userSchema = new mongoose.Schema({
   isSuspended:    { type: Boolean, default: false },
   suspendedUntil: { type: Date,    default: null },
   isBlocked:      { type: Boolean, default: false },
+
+  // ── Password reset ─────────────────────────────────────────────────
+  resetPasswordToken:   { type: String,  default: undefined },
+  resetPasswordExpires: { type: Number,  default: undefined },
 }, { timestamps: true });
 
 userSchema.pre('save', async function (next) {
@@ -37,6 +41,8 @@ userSchema.methods.comparePassword = function (candidate) {
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
+  delete obj.resetPasswordToken;
+  delete obj.resetPasswordExpires;
   return obj;
 };
 
